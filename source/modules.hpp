@@ -32,6 +32,7 @@
 #include "evaluate/callable/EvalTaskEqu.hpp"
 #include "evaluate/static/EvalPacking.hpp"
 #include "evaluate/static/EvalRandom.hpp"
+#include "evaluate/math/EvalFunction.hpp"
 
 // Placement Modules
 #include "placement/AnnotatePlacement_Position.hpp"

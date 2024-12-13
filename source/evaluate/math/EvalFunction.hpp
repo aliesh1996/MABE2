@@ -43,7 +43,7 @@ namespace mabe {
 
     /// Test values of each input in order, separated by a ';'
     //emp::String test_summary = "0:100; 100:-1:0"
-    emp::String case_ids = 0:100;
+    emp::String case_ids = "0:100";
     emp::String test_summary = "case_id; (case_id*7)%100";
 
     emp::vector<emp::String> input_names;   ///< Names of individual input traits.
@@ -69,6 +69,21 @@ namespace mabe {
                              "Evaluate organism's ability to solve a target function.");
     }
 
+    std::vector<double> parseSequence(const std::string& input) {
+      std::vector<double> sequence;
+      std::istringstream stream(input);
+      double value;
+
+      while (stream >> value) {
+        sequence.push_back(value);
+        if (stream.peek() == ',') {
+          stream.ignore(); // Skip commas
+        }
+      }
+
+      return sequence;
+    }
+
     void SetupConfig() override {
       LinkVar(input_traits, "input_traits", "Traits to put input value(s) for organism.\nFormat: comma-separated list");
       LinkVar(output_trait, "output_trait", "Trait to find output values from organism.");
@@ -76,35 +91,48 @@ namespace mabe {
       LinkVar(fitness_trait, "fitness_trait", "Trait for combined fitness (#tests - error sum)");
       LinkVar(function, "function", "Function to specify target output.");
       LinkVar(test_summary, "test_values", "Test values to use for evaluation.\nFormat: Range list for each variable; use ';' to separate variables");
-      );
     }
 
     void SetupModule() override {
-      input_names = emp::slice(input_traits, ',');
-      if (intput_names.size() > MAX_INPUTS) {
+//      emp::vector<emp::String> input_names = emp::slice(input_traits, ',');
+      std::vector<std::string> sliced = emp::slice(input_traits, ',');
+      emp::vector<emp::String> input_names;
+      for (const auto& str : sliced) {
+        input_names.push_back(emp::String(str));
+      }
+
+      if (input_names.size() > MAX_INPUTS) {
         emp::notify::Error("EvalFunction does not allow more than ", MAX_INPUTS, " inputs. ",
                            input_names.size(), " inputs, requested.");
       }
       for (const emp::String & name : input_names) {
         AddOwnedTrait<double>(name, "Input value", 0.0);
       }
-      AddRequiredTrait<double>(output_trait); // Output values
-      AddOwnedTrait<emp::vector<double>>(errors_trait, "Error vector for tests.", emp::vector<double>();
+      AddRequiredTrait<emp::vector<double>>(output_trait); // Output values
+      AddOwnedTrait<emp::vector<double>>(errors_trait, "Error vector for tests.", emp::vector<double>());
       AddOwnedTrait<double>(fitness_trait, "Combined success rating", 0.0);
 
       // Prepare the test values to use.
       emp::remove_whitespace(test_summary);
-      emp::vector<emp::String> test_sets = emp::slice(test_summary, ';');
+//      emp::vector<emp::String> test_sets = emp::slice(test_summary, ';');
+      std::vector<std::string> sliced2 = emp::slice(test_summary, ';');
+      emp::vector<emp::String> test_sets;
+      for (const auto& str : sliced2) {
+        test_sets.push_back(emp::String(str));
+      }
+
 
       if (test_sets.size() != input_names.size()) {
         emp::notify::Error("EvalFunction requires one test set for each input.  Found ",
-                           input_names.size(), " inputs, but ", tests_sets.size(), " test sets.");
+                           input_names.size(), " inputs, but ", test_sets.size(), " test sets.");
       }
 
       // Put the test values in place, along with the expected results.
       test_values.resize(test_sets.size());               // Create one array for each input variable.
       for (size_t i = 0; i < test_sets.size(); ++i) {
-        test_values[i] = emp::ToSequence(test_sets[i]);   // Set all values for one input variable.
+        test_values[i] = parseSequence(test_sets[i]);
+  // Implement `parseSequence` as needed.
+   // Set all values for one input variable.
         if (num_tests == emp::MAX_SIZE_T) num_tests = test_values[i].size();
         else if (test_values[i].size() != num_tests) {
           emp::notify::Error("EvalFunction requires all inputs to have the same count of values.  First input (0) has ",
@@ -123,8 +151,8 @@ namespace mabe {
 
     double Evaluate(const Collection & orgs) {
       // If we haven't calculated the IDs, do so now.
-      if (output_trait == emp::MAX_SIZE_T) {
-        input_ids.resize(input_names.size());
+      if (output_trait == emp::to_string(emp::MAX_SIZE_T)) {
+        std::vector<size_t> input_ids(input_names.size());
         for (size_t i = 0; i < input_names.size(); ++i) {
           input_ids[i] = orgs.GetDataLayout().GetID(input_names[i]);
         }
@@ -143,8 +171,8 @@ namespace mabe {
       for (Organism & org : alive_collect) {
         control.Verbose("...eval org #", org_count++);
 
-        double & ouput = org.GetTrait<double>(output_id);
-        double & errors = org.GetTrait<emp::vector<double>>(errors_id);
+//        double & ouput = org.GetTrait<double>(output_id);
+//        const emp::vector<double> & errors = org.GetTrait<emp::vector<double>>(errors_id);
         double & fitness = org.GetTrait<double>(fitness_trait);
 
         /// Loop through test cases to evaluate each.
